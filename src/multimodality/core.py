@@ -4,7 +4,7 @@ from scipy.stats import gaussian_kde
 from scipy import ndimage
 
 
-def estimate_kde_on_grid(x, y, gridsize=200, bw_method=None, padding=0.15):
+def _estimate_kde_on_grid(x, y, gridsize=200, bw_method=None, padding=0.15):
     """
     Estimate 2D KDE on a rectangular grid.
     Returns X, Y, Z where Z is the estimated density on the grid.
@@ -36,7 +36,7 @@ def estimate_kde_on_grid(x, y, gridsize=200, bw_method=None, padding=0.15):
     return X, Y, Z
 
 
-def component_elongation(coords):
+def _component_elongation(coords):
     """
     Compute elongation of a connected component from its grid coordinates.
 
@@ -60,7 +60,7 @@ def component_elongation(coords):
     return elongation_ratio, evals
 
 
-def analyze_superlevel_sets(
+def _analyze_superlevel_sets(
     X, Y, Z,
     frac_min=0.7,
     n_levels=15,
@@ -117,7 +117,7 @@ def analyze_superlevel_sets(
 
             valid_count += 1
             coords = np.column_stack([X[idx], Y[idx]])
-            elongation, evals = component_elongation(coords)
+            elongation, evals = _component_elongation(coords)
 
             components.append({
                 "label": k,
@@ -144,18 +144,45 @@ def analyze_superlevel_sets(
     return results
 
 
+def multimodality_analysis(
+        x_data, 
+        y_data,
+        frac_min=0.7,
+        n_levels=15,
+        connectivity=2,
+        elongation_threshold=3.0,
+        min_component_size=20,
+        gridsize=220, 
+        bw_method='scott', 
+        padding=0.15):
+    X, Y, Z = _estimate_kde_on_grid(x_data, y_data, gridsize=gridsize, bw_method=bw_method, padding=padding)
+    results = _analyze_superlevel_sets(
+        X, Y, Z,
+        frac_min=frac_min,
+        n_levels=n_levels,
+        connectivity=connectivity,
+        elongation_threshold=elongation_threshold,
+        min_component_size=elongation_threshold,
+    )
+    return {
+        "analysis": results,
+        "x_": X, "y_": Y, "z_": Z
+    }
+    
+
 def print_summary(results, elongation_threshold=3.0):
     """
     Print a readable summary of the superlevel-set analysis.
     """
-    any_disconnected = any(r["disconnected"] for r in results)
-    any_elongated = any(r["elongated"] for r in results)
+    analysis = results["analysis"]
+    any_disconnected = any(r["disconnected"] for r in analysis)
+    any_elongated = any(r["elongated"] for r in analysis)
 
     print("Any disconnected superlevel set above threshold range?:", any_disconnected)
     print(f"Any elongated component (ratio > {elongation_threshold})?:", any_elongated)
     print()
 
-    for r in results:
+    for r in analysis:
         print(
             f"Level = {r['level_fraction_of_max']:.3f} * max(pdf), "
             f"components = {r['n_components']}, "
@@ -169,15 +196,19 @@ def print_summary(results, elongation_threshold=3.0):
             )
 
 
-def plot_results(X, Y, Z, results, frac_to_show=0.7):
+def plot_results(results, frac_to_show=0.7):
     """
     Plot KDE contours and the superlevel set at one selected threshold.
     """
+    X = results["x_"]
+    Y = results["y_"] 
+    Z = results["z_"] 
+    analysis = results["analysis"]
     zmax = Z.max()
     target_level = frac_to_show * zmax
 
     # find closest analyzed level
-    best = min(results, key=lambda r: abs(r["level"] - target_level))
+    best = min(analysis, key=lambda r: abs(r["level"] - target_level))
     level = best["level"]
 
     mask = Z >= level

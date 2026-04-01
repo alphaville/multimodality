@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "multimodality"
+version = "0.0.1"
+description = "Mutlimodality stuff"
+readme = "README.md"
+requires-python = ">=3.11"
+keywords = [
+  "scientific-computing",
+  "mathematics",
+]
+authors = [
+  { name = "Pantelis Sopasakis", email = "xzu.trustful191@passinbox.com" }
+]
+license = { text = "MIT" }
+dependencies = ["numpy", "scipy", "matplotlib"]
+optional-dependencies = { dev = ["pytest>=8"] }
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Scientific/Engineering :: Mathematics"
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]

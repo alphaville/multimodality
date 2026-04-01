@@ -235,3 +235,101 @@ def plot_results(results, frac_to_show=0.7):
 
     plt.tight_layout()
     plt.show()
+
+def unimodality_analysis(
+    results,
+    w_disc=0.9,
+    w_elong=0.1,
+    e_good=1.5,
+    e_bad=3.0,
+    agg="min",
+):
+    """
+    Compute a unimodality index in [0, 1] from `results`.
+
+    Parameters
+    ----------
+    results : list of dict
+        Output of analyze_superlevel_sets(...)
+    w_disc : float
+        Weight for disconnectedness penalty.
+    w_elong : float
+        Weight for elongation penalty.
+    e_good : float
+        Elongation at or below this is considered fine.
+    e_bad : float
+        Elongation at or above this gets full elongation penalty.
+    agg : str
+        How to aggregate across levels: "mean", "min", or "weighted_mean".
+
+    Returns
+    -------
+    summary : dict with:
+        - unimodality_index
+        - per_level_scores
+        - per_level_penalties
+    """
+    analysis = results["analysis"]
+    if not np.isclose(w_disc + w_elong, 1.0):
+        raise ValueError("w_disc + w_elong must equal 1.")
+
+    per_level_scores = []
+    per_level_penalties = []
+
+    level_fracs = np.array([r["level_fraction_of_max"] for r in analysis], dtype=float)
+
+    for r in analysis:
+        c = r["n_components"]
+
+        # disconnectedness penalty
+        if c <= 1:
+            p_disc = 0.0
+        else:
+            p_disc = 1.0 - 1.0 / c
+
+        # max elongation over components at this level
+        if len(r["components"]) == 0:
+            e_max = 1.0
+        else:
+            elongs = [comp["elongation"] for comp in r["components"] if np.isfinite(comp["elongation"])]
+            e_max = max(elongs) if len(elongs) > 0 else 1.0
+
+        # elongation penalty
+        if e_max <= e_good:
+            p_elong = 0.0
+        elif e_max >= e_bad:
+            p_elong = 1.0
+        else:
+            p_elong = (e_max - e_good) / (e_bad - e_good)
+
+        total_penalty = w_disc * p_disc + w_elong * p_elong
+        score = 1.0 - total_penalty
+
+        per_level_scores.append(score)
+        per_level_penalties.append({
+            "level_fraction_of_max": r["level_fraction_of_max"],
+            "n_components": c,
+            "max_elongation": e_max,
+            "p_disc": p_disc,
+            "p_elong": p_elong,
+            "score": score,
+        })
+
+    per_level_scores = np.array(per_level_scores)
+
+    if agg == "mean":
+        U = float(np.mean(per_level_scores))
+    elif agg == "min":
+        U = float(np.min(per_level_scores))
+    elif agg == "weighted_mean":
+        # weight more heavily the levels closer to the maximum
+        weights = level_fracs / level_fracs.sum()
+        U = float(np.sum(weights * per_level_scores))
+    else:
+        raise ValueError("agg must be one of: 'mean', 'min', 'weighted_mean'")
+
+    return {
+        "unimodality_index": U,
+        "per_level_scores": per_level_scores,
+        "per_level_penalties": per_level_penalties,
+    }

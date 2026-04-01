@@ -27,5 +27,7 @@ if __name__ == "__main__":
     x2, y2 = _generate_example_data_elongated()
     results = mm.multimodality_analysis(x2, y2)
     
-    mm.print_summary(results, elongation_threshold=3)
-    mm.plot_results(results, frac_to_show=0.7)
+    # mm.print_summary(results, elongation_threshold=3)
+    # mm.plot_results(results, frac_to_show=0.7)
+    ua = mm.unimodality_analysis(results)
+    print(ua["unimodality_index"])
